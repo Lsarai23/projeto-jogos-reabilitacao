@@ -67,6 +67,6 @@ jobs:
           gh release create "$NEW_TAG" \
             --title "Release $NEW_TAG" \
             --generate-notes \
-            --target master \
+            --target main \
             project.zip \
             paper/main.pdf
