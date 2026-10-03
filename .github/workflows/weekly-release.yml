@@ -1,19 +1,15 @@
 name: Weekly Release Notes
-
 on:
   schedule:
     # Domingo às 08:00 BRT (11:00 UTC)
     - cron: '0 11 * * 0'
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   release:
     name: Create Weekly Release
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,15 +20,12 @@ jobs:
         id: check_changes
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
           if [ -z "$LAST_TAG" ]; then
             echo "No baseline tag found. A manual tag needs to be created first."
             echo "has_changes=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-
           COMMITS=$(git log $LAST_TAG..HEAD --oneline)
-
           if [ -z "$COMMITS" ]; then
             echo "No changes found since $LAST_TAG. Skipping release creation."
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -54,10 +47,11 @@ jobs:
           NEW_TAG="v$(date +'%Y.%m.%d')"
           echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
 
-      - name: Create Zip Archive
+      - name: Create Zip Archives
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
           zip -r project.zip . -x "docs/*" "paper/*" ".github/*" ".git/*"
+          zip -r paper.zip paper/
 
       - name: Create GitHub Release
         if: steps.check_changes.outputs.has_changes == 'true'
@@ -69,4 +63,5 @@ jobs:
             --generate-notes \
             --target main \
             project.zip \
+            paper.zip \
             paper/main.pdf
