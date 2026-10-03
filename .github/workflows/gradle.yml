@@ -64,10 +64,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Validate Syntax and Macros (Draft Mode)
+      - name: Validate Syntax and Macros
         uses: xu-cheng/latex-action@v3
         with:
           root_file: main.tex
           working_directory: paper
-          # -draftmode faz a validação completa mas ignora a geração do PDF, poupando tempo
-          args: -pdf -draftmode -file-line-error -halt-on-error -interaction=nonstopmode
+         
+          args: -pdf -file-line-error -halt-on-error -interaction=nonstopmode
