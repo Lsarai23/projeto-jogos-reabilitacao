@@ -8,13 +8,13 @@ import java.io.InputStreamReader;
 public class UltrassonicSensorReader implements Runnable{
 
     private final SerialPort serialPort;
-    private volatile int distancia;
+    private volatile int distance;
 
     private boolean running;
 
-    public UltrassonicSensorReader(String porta) {
+    public UltrassonicSensorReader(String port) {
 
-        serialPort = SerialPort.getCommPort(porta);
+        serialPort = SerialPort.getCommPort(port);
         serialPort.setBaudRate(9600);
 
         serialPort.setComPortTimeouts(
@@ -28,7 +28,7 @@ public class UltrassonicSensorReader implements Runnable{
 
         if (!serialPort.openPort()) {
             throw new RuntimeException(
-                "Não foi possível abrir a porta serial."
+                "Não foi possível abrir a port serial."
             );
         }
 
@@ -55,20 +55,21 @@ public class UltrassonicSensorReader implements Runnable{
 
             while (running) {
 
-                String linha = reader.readLine();
+                String line = reader.readLine();
 
-                if (linha == null) {
+                if (line == null) {
                     continue;
                 }
 
                 try {
 
-                    distancia = Integer.parseInt(linha);
+                    distance = Integer.parseInt(line);
+                    System.out.println("Recebido do Arduino: " + distance + " (" + line + ")");
 
                 } catch (NumberFormatException e) {
 
                     System.out.println(
-                        "Valor inválido: " + linha
+                        "Valor inválido: " + line
                     );
                 }
             }
@@ -81,8 +82,8 @@ public class UltrassonicSensorReader implements Runnable{
         }
     }
 
-    public int getDistancia() {
-        return distancia;
+    public int getDistance() {
+        return distance;
     }
 
     public void stop() {
