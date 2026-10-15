@@ -32,6 +32,26 @@ As seguintes métricas quantitativas e qualitativas foram extraídas da literatu
 6. **Tempo de Reação e Execução (*TIME / Reaction Time*)**: Intervalo decorrido entre a queda do objeto na tela e o início/conclusão do movimento físico de alinhamento pelo paciente (AFYOUNI; MURAD; EINEA, 2020; PASQUINI et al., 2026).
 7. **Escala de Usabilidade do Sistema (*System Usability Scale - SUS*)**: Questionário padronizado aplicado para avaliar o conforto, facilidade de uso e aceitação do sistema pelo usuário (AFYOUNI; MURAD; EINEA, 2020; CHA et al., 2021).
 
+------
+
+## 5. Incentivo ao desenvolvimento de jogos no Brasil
+O decreto nº 13.138 de 14 de out de 2026, cria o marco legal da indústria de jogos eletrônicos, regulamentando a Lei nº 14.852
+
+Os objetivos são:
+I - estimular o desenvolvimento do setor brasileiro de jogos eletrônicos;
+
+II - promover a cultura gamer como segmento da cultura nacional e mecanismo de difusão da língua portuguesa;
+
+III - fortalecer a presença nos mercados nacional e internacional de jogos eletrônicos produzidos ou coproduzidos pelo setor brasileiro de jogos eletrônicos;
+
+IV - incentivar a inovação tecnológica e a sustentabilidade dos empreendimentos do setor brasileiro de jogos eletrônicos;
+
+V - promover a formação e a qualificação de pessoal do setor brasileiro de jogos eletrônicos;
+
+VI - promover a proteção à propriedade intelectual relativa a jogos eletrônicos; e
+
+VII - proteger a saúde dos usuários de jogos eletrônicos, inclusive quanto à prevenção de riscos à saúde relacionados aos hábitos de uso e ao transtorno por uso de jogos eletrônicos.
+
 ---
 
 ## Referências Bibliográficas (Norma ABNT)
@@ -41,3 +61,5 @@ AFYOUNI, Imad; MURAD, Abdullah; EINEA, Anas. Adaptive Rehabilitation Bots in Ser
 CHA, Kuan et al. A novel upper-limb tracking system in a virtual environment for stroke rehabilitation. **Journal of NeuroEngineering and Rehabilitation**, v. 18, n. 1, p. 1-13, 2021.
 
 PASQUINI, Guido et al. A serious game for assessing upper-limb visuomotor adaptation in children with cerebral palsy during reaching tasks in virtual reality. **Scientific Reports**, v. 16, n. 1, p. 1-14, 2026.
+
+**BRASIL. Decreto nº 13.138, de 14 de outubro de 2026**. Regulamenta a Lei nº 14.852, de 3 de maio de 2024, que cria o marco legal para a indústria de jogos eletrônicos. Brasília, DF: Presidência da República, 2026. Disponível em: https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/d13138.htm. Acesso em: 15 out. 2026.
