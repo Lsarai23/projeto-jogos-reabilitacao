@@ -12,6 +12,18 @@
 * **Limitações de Câmeras e Sensores Ópticos**: Dispositivos de mercado como o *Leap Motion* possuem volume de rastreamento restrito a um pequeno cone de visão (CHA et al., 2021), enquanto sensores de profundidade (*Kinect*) exigem alto poder computacional e sofrem falhas de oclusão visual quando há rigidez muscular, espasticidade ou sobreposição de membros (AFYOUNI; MURAD; EINEA, 2020).
 * **Justificativa do Sensor Ultrassônico (1 DoF)**: O sensor de proximidade ultrassônico oferece uma interface sem contato (*markerless*) de **ultra-baixo custo**, com baixo consumo computacional e independência em relação à postura da mão ou fechamento dos dedos (AFYOUNI; MURAD; EINEA, 2020; CHA et al., 2021; PASQUINI et al., 2026).
 
+### Outros dispositivos
+* Dispositivos Móveis e Desktops: São as plataformas mais empregadas para essa finalidade
+  * Os smartphones são frequentemente escolhidos pela portabilidade e pelo uso dos próprios sensores internos
+* Sensores de Movimento e Rastreamento:
+  * Uso intensivo de acelerômetros (para contagem de passos)
+  * giroscópios (para detecção de equilíbrio corporal)
+  * sensores vestíveis para treino de musculação com pesos livres
+  * periféricos comerciais como o Microsoft Kinect (para exercícios supervisionados em casa) e a Wii Balance Board (para treinos de passos em idosos)
+* Realidade Virtual (VR) e Realidade Aumentada (AR)
+  * Embora menos frequentes devido a custos e complexidade técnica, foram aplicadas em esteiras com ambientes imersivos, reabilitação de marcha
+ e marcadores de AR para exercícios específicos de entorse de tornozelo.
+
 ---
 
 ## 3. Calibração e Mecanismo Facilitador de Ganho (*Gain/ROM Scaling*)
@@ -63,3 +75,15 @@ CHA, Kuan et al. A novel upper-limb tracking system in a virtual environment for
 PASQUINI, Guido et al. A serious game for assessing upper-limb visuomotor adaptation in children with cerebral palsy during reaching tasks in virtual reality. **Scientific Reports**, v. 16, n. 1, p. 1-14, 2026.
 
 **BRASIL. Decreto nº 13.138, de 14 de outubro de 2026**. Regulamenta a Lei nº 14.852, de 3 de maio de 2024, que cria o marco legal para a indústria de jogos eletrônicos. Brasília, DF: Presidência da República, 2026. Disponível em: https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/d13138.htm. Acesso em: 15 out. 2026.
+
+A. A. Tori, R. Tori and F. d. L. d. S. Nunes, Serious Game Design in Health Education: A Systematic Review in IEEE Transactions on Learning Technologies, vol. 15, no. 6, pp. 827-846, 1 Dec. 2022, doi: 10.1109/TLT.2022.3200583.
+
+S. Utthayotha and N. Choosri, "Survey of Serious Game Controllers for Stroke Rehabilitation," 2020 - 5th International Conference on Information Technology (InCIT), Chonburi, Thailand, 2020, pp. 71-75, doi: 10.1109/InCIT50588.2020.9310776.
+
+P. Rego, P. M. Moreira and L. P. Reis, "Serious games for rehabilitation: A survey and a classification towards a taxonomy," 5th Iberian Conference on Information Systems and Technologies, Santiago de Compostela, Spain, 2010, pp. 1-6. keywords: {Games;Training;Computers;Medical treatment;Three dimensional displays;Tracking;Serious Games;Rehabilitation;Game Design;Health Informatics},
+
+
+
+
+
+
