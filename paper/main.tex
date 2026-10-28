@@ -2,160 +2,99 @@
 
 \usepackage{sbc-template}
 \usepackage{graphicx,url}
-\usepackage[brazilian]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
 
-     
+
 \sloppy
 
-\title{Instructions for Authors of SBC Conferences\\ Papers and Abstracts}
+\title{\textit{Baker's Rush: Recipe Catch}, um Jogo Sério para Reabilitação de Membros Superiores}
 
-\author{Luciana P. Nedel\inst{1}, Rafael H. Bordini\inst{2}, Flávio Rech
-  Wagner\inst{1}, Jomi F. Hübner\inst{3} }
+\author{Lucas Pires de Camargo Sarai\inst{1}, Prof. Dr. Leandro Pupo Natale\inst{1}}
 
-
-\address{Instituto de Informática -- Universidade Federal do Rio Grande do Sul
-  (UFRGS)\\
-  Caixa Postal 15.064 -- 91.501-970 -- Porto Alegre -- RS -- Brazil
-\nextinstitute
-  Department of Computer Science -- University of Durham\\
-  Durham, U.K.
-\nextinstitute
-  Departamento de Sistemas e Computação\\
-  Universidade Regional de Blumenal (FURB) -- Blumenau, SC -- Brazil
-  \email{\{nedel,flavio\}@inf.ufrgs.br, R.Bordini@durham.ac.uk,
-  jomi@inf.furb.br}
+\address{Faculdade de Computação e Informática (FCI) \\ Universidade Presbiteriana Mackenzie São Paulo, SP -- Brasil \\
+    \url{lucas.sarai@mackenzista.com.br}
+    \\
+    \url{leandro.natale@mackenzie.br}
 }
 
-\begin{document} 
+\begin{document}
 
 \maketitle
 
 \begin{abstract}
-  This meta-paper describes the style to be used in articles and short papers
-  for SBC conferences. For papers in English, you should add just an abstract
-  while for the papers in Portuguese, we also ask for an abstract in
-  Portuguese (``resumo''). In both cases, abstracts should not have more than
-  10 lines and must be in the first page of the paper.
+This paper presents the proposal of Baker's Rush: Recipe Catch, a serious game for upper-limb rehabilitation based on horizontal arm movement. The player controls a cook who collects only the ingredients required by a recipe, using an HC-SR04 ultrasonic sensor as a one-degree-of-freedom input device. The proposal combines range-of-motion calibration, visual gain scaling, and performance indicators drawn from the literature. The article discusses the scientific basis and design rationale; implementation and clinical effectiveness remain to be evaluated.
 \end{abstract}
-     
-\begin{resumo} 
-  Este meta-artigo descreve o estilo a ser usado na confecção de artigos e
-  resumos de artigos para publicação nos anais das conferências organizadas
-  pela SBC. É solicitada a escrita de resumo e abstract apenas para os artigos
-  escritos em português. Artigos em inglês deverão apresentar apenas abstract.
-  Nos dois casos, o autor deve tomar cuidado para que o resumo (e o abstract)
-  não ultrapassem 10 linhas cada, sendo que ambos devem estar na primeira
-  página do artigo.
+\begin{resumo}
+Este trabalho apresenta a proposta do jogo sério \textit{Baker's Rush: Recipe Catch}, voltado à reabilitação de membros superiores por meio de movimentos horizontais do braço. O jogador controla um cozinheiro que coleta apenas os ingredientes necessários para cada receita, utilizando um sensor ultrassônico HC-SR04 como dispositivo de entrada de um grau de liberdade. A proposta combina calibração da amplitude de movimento, ganho visual e métricas de desempenho fundamentadas na literatura. O artigo discute a motivação e o projeto conceitual; a implementação e a eficácia clínica ainda deverão ser avaliadas.
 \end{resumo}
 
+\noindent\textbf{Palavras-chave}: jogo sério; reabilitação; membro superior; HC-SR04; alcance horizontal.
 
-\section{General Information}
+\section{Introdução}
 
-All full papers and posters (short papers) submitted to some SBC conference,
-including any supporting documents, should be written in English or in
-Portuguese. The format paper should be A4 with single column, 3.5 cm for upper
-margin, 2.5 cm for bottom margin and 3.0 cm for lateral margins, without
-headers or footers. The main font must be Times, 12 point nominal size, with 6
-points of space before each paragraph. Page numbers must be suppressed.
+Jogos sérios são jogos digitais concebidos para atender a objetivos que vão além do entretenimento, como aprendizagem, treinamento, avaliação ou apoio a intervenções em saúde. Na reabilitação, atividades lúdicas podem organizar movimentos repetitivos em tarefas com objetivos, feedback e progressão de dificuldade, favorecendo a participação do usuário. Revisões da área descrevem aplicações de jogos em reabilitação e enfatizam que o projeto deve articular objetivos terapêuticos, interação e avaliação, sem tratar o jogo como substituto automático da terapia convencional (REGO; MOREIRA; REIS, 2010; TORI; TORI; NUNES, 2022). Estudos sobre controladores para reabilitação pós-AVC também destacam a variedade de dispositivos e a importância de selecionar interfaces compatíveis com as capacidades e necessidades dos usuários (UTTHAYOTHA; CHOOSRI, 2020).
 
-Full papers must respect the page limits defined by the conference.
-Conferences that publish just abstracts ask for \textbf{one}-page texts.
+Neste contexto, propõe-se \textit{Baker's Rush: Recipe Catch}, no qual o participante assume o papel de um cozinheiro e desloca um personagem horizontalmente para interceptar ingredientes que caem na tela. Cada rodada apresenta uma receita e, portanto, uma quantidade-alvo de cada ingrediente: coletar itens necessários contribui para completar a receita, enquanto coletar itens excedentes reduz as vidas disponíveis. A mecânica transforma alcance lateral repetido em uma tarefa com metas e feedback compreensíveis. O controle planejado utiliza um sensor ultrassônico HC-SR04 para medir a distância entre o braço e o sensor; aproximar-se ou afastar-se é mapeado para a posição horizontal do personagem.
 
-\section{First Page} \label{sec:firstpage}
+O projeto é motivado também pelo marco regulatório brasileiro. A Lei nº 14.852, de 3 de maio de 2024, instituiu o marco legal da indústria de jogos eletrônicos, e o Decreto nº 13.138, de 14 de outubro de 2026, regulamentou essa lei. Entre os objetivos regulamentares estão estimular o setor nacional, promover a cultura gamer, incentivar inovação e proteger a saúde dos usuários. Esse contexto reconhece a relevância cultural e tecnológica do desenvolvimento de jogos no país, mas não equivale, por si só, a uma validação clínica ou a uma autorização sanitária para este jogo (BRASIL, 2026).
 
-The first page must display the paper title, the name and address of the
-authors, the abstract in English and ``resumo'' in Portuguese (``resumos'' are
-required only for papers written in Portuguese). The title must be centered
-over the whole page, in 16 point boldface font and with 12 points of space
-before itself. Author names must be centered in 12 point font, bold, all of
-them disposed in the same line, separated by commas and with 12 points of
-space after the title. Addresses must be centered in 12 point font, also with
-12 points of space after the authors' names. E-mail addresses should be
-written using font Courier New, 10 point nominal size, with 6 points of space
-before and 6 points of space after.
+O objetivo geral é projetar e avaliar a viabilidade de um jogo sério de coleta de ingredientes controlado por movimento horizontal do braço e por um sensor HC-SR04, como ferramenta complementar para exercícios de membros superiores. Como objetivos específicos, pretende-se: (i) desenvolver a mecânica de coleta condicionada às receitas; (ii) definir um procedimento de calibração da faixa de movimento funcional; (iii) mapear a leitura do sensor para o deslocamento horizontal do personagem, incluindo um ganho visual ajustável; e (iv) registrar métricas de desempenho e usabilidade para orientar avaliações futuras.
 
-The abstract and ``resumo'' (if is the case) must be in 12 point Times font,
-indented 0.8cm on both sides. The word \textbf{Abstract} and \textbf{Resumo},
-should be written in boldface and must precede the text.
+A hipótese de projeto é que a calibração individual e a amplificação visual do deslocamento permitam que pessoas com diferentes amplitudes funcionais controlem o personagem ao longo da tela por meio de um movimento horizontal reduzido. Essa hipótese diz respeito à viabilidade da interação e deverá ser testada; não se presume, neste estágio, melhora clínica ou eficácia terapêutica. As próximas seções apresentam trabalhos relacionados, a metodologia proposta e o estado preliminar do projeto, com atividades futuras.
 
-\section{CD-ROMs and Printed Proceedings}
+\section{Trabalhos Relacionados}
 
-In some conferences, the papers are published on CD-ROM while only the
-abstract is published in the printed Proceedings. In this case, authors are
-invited to prepare two final versions of the paper. One, complete, to be
-published on the CD and the other, containing only the first page, with
-abstract and ``resumo'' (for papers in Portuguese).
+Jogos sérios aplicados à saúde abrangem diferentes propósitos e formas de interação. Tori, Tori e Nunes (2022) identificam elementos de projeto e abordagens de avaliação usados em jogos de saúde, enquanto Rego, Moreira e Reis (2010) organizam sistemas de reabilitação em uma taxonomia e discutem desafios de projeto. Para reabilitação pós-AVC, Utthayotha e Choosri (2020) revisam controladores empregados em jogos sérios, evidenciando que a interface é parte central da adaptação do jogo ao usuário. Esses trabalhos fundamentam o uso de uma atividade lúdica orientada a metas, mas não demonstram a eficácia específica da mecânica de receitas aqui proposta.
 
-\section{Sections and Paragraphs}
+Cha et al. (2021) desenvolveram um sistema de rastreamento de membros superiores em ambiente virtual para reabilitação pós-AVC e discutem alternativas de rastreamento em comparação com dispositivos como o Leap Motion. O estudo é pertinente por tratar da interação e do rastreamento de tarefas de alcance em um contexto de reabilitação; seu sistema e protocolo, contudo, não são equivalentes a um sensor ultrassônico de distância ou a um controle unidimensional, e seus resultados não validam diretamente a proposta deste artigo.
 
-Section titles must be in boldface, 13pt, flush left. There should be an extra
-12 pt of space before each title. Section numbering is optional. The first
-paragraph of each section should not be indented, while the first lines of
-subsequent paragraphs should be indented by 1.27 cm.
+Afyouni, Murad e Einea (2020) apresentam o RehaBot, uma plataforma de telereabilitação com rastreamento corporal, orientação virtual e ajuste adaptativo de dificuldade. O sistema usa sensores de captura de movimento e discute ruído e instabilidade no rastreamento por Kinect, além de métricas como tempo, amplitude de movimento e sucesso no exercício. Os autores também apontam que dispositivos imersivos podem estar associados a desconforto ou \textit{cybersickness}. Esses resultados apoiam a consideração de interfaces simples, feedback e adaptação, mas não estabelecem que uma tela 2D convencional elimine riscos de desconforto nem que o HC-SR04 seja clinicamente validado.
 
-\subsection{Subsections}
+Pasquini et al. (2026) investigaram adaptação visuomotora em tarefas de alcance lateral em um jogo sério em realidade virtual com participantes com paralisia cerebral e grupo de controle. A condição de ganho amplificava o deslocamento virtual; no mapeamento estudado, isso podia reduzir aproximadamente pela metade a amplitude física necessária e facilitou alguns indicadores de desempenho do grupo clínico. O trabalho também calculou alvos coletados (CT), tempo, velocidade média, comprimento de trajetória normalizado (NPL) e suavidade por Spectral Arc Length (SPARC). Esses achados dão suporte à investigação de ganho visual e métricas cinemáticas, mas não devem ser generalizados automaticamente para uma tela 2D, adultos pós-AVC ou para o sensor HC-SR04.
 
-The subsection titles must be in boldface, 12pt, flush left.
+A escolha do HC-SR04 neste projeto é uma decisão de engenharia a ser validada, não um resultado diretamente demonstrado pelos trabalhos acima. A leitura de distância oferece um sinal escalar sem exigir que o usuário vista marcadores ou mantenha dedos em uma postura específica; por outro lado, essa característica limita a medição a um eixo e pode ser influenciada pelo posicionamento do braço, do sensor e do tronco, bem como por ruído de leitura. Assim, a proposta privilegia simplicidade e baixo custo esperado do componente, mas precisará verificar repetibilidade, faixa útil, latência e segurança da instalação antes de qualquer avaliação com participantes.
 
-\section{Figures and Captions}\label{sec:figs}
+As métricas sugeridas para a avaliação incluem: (i) taxa de coleta correta, definida como ingredientes corretos coletados em relação aos alvos apresentados; (ii) amplitude de movimento real, estimada a partir dos limites mínimo e máximo calibrados pelo sensor; (iii) velocidade de deslocamento, calculada pela variação da distância ao longo do tempo; (iv) NPL, se a trajetória temporal puder ser reconstruída de modo confiável; (v) SPARC, para caracterizar a suavidade do sinal de movimento; (vi) tempo entre o aparecimento de um ingrediente e o alinhamento/coleta; e (vii) usabilidade, que poderá ser investigada por instrumento padronizado como a System Usability Scale (SUS). Essas métricas são propostas de avaliação e devem ser operacionalizadas e validadas para a mecânica e o sensor escolhidos. Em particular, NPL e SPARC exigem amostragem temporal e tratamento de sinal adequados, não apenas os extremos da calibração.
 
+\section{Metodologia}
 
-Figure and table captions should be centered if less than one line
-(Figure~\ref{fig:exampleFig1}), otherwise justified and indented by 0.8cm on
-both margins, as shown in Figure~\ref{fig:exampleFig2}. The caption font must
-be Helvetica, 10 point, boldface, with 6 points of space before and after each
-caption.
+A metodologia experimental permanece em definição. A implementação prevista deverá incluir leitura filtrada do HC-SR04, calibração individual dos limites funcionais de alcance, normalização dos valores para a largura da tela e ajuste configurável do ganho. A lógica do jogo deverá associar os ingredientes à receita corrente, contabilizar coletas corretas e excedentes e apresentar feedback visual sem exigir deslocamentos além da faixa calibrada.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=.5\textwidth]{fig1.jpg}
-\caption{A typical figure}
-\label{fig:exampleFig1}
-\end{figure}
+O protocolo de avaliação, a população-alvo, os critérios de inclusão, os instrumentos clínicos, o plano de análise estatística e os procedimentos éticos ainda deverão ser definidos com orientação profissional e aprovação ética, quando aplicável. Qualquer teste com usuários deverá ser supervisionado por profissionais habilitados e não substituir o atendimento de reabilitação. Nesta etapa, não há coleta de dados com participantes.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=.3\textwidth]{fig2.jpg}
-\caption{This figure is an example of a figure caption taking more than one
-  line and justified considering margins mentioned in Section~\ref{sec:figs}.}
-\label{fig:exampleFig2}
-\end{figure}
+\section{Resultados Preliminares e Trabalhos Futuros}
 
-In tables, try to avoid the use of colored or shaded backgrounds, and avoid
-thick, doubled, or unnecessary framing lines. When reporting empirical data,
-do not use more decimal digits than warranted by their precision and
-reproducibility. Table caption must be placed before the table (see Table 1)
-and the font used must also be Helvetica, 10 point, boldface, with 6 points of
-space before and after each caption.
+Até o momento, o resultado apresentado é o delineamento conceitual da mecânica de coleta e do mapeamento de movimento. Ainda não foram realizados testes de bancada, validação do sensor, avaliação de usabilidade ou experimento clínico; portanto, não são reportados resultados quantitativos.
 
-\begin{table}[ht]
-\centering
-\caption{Variables to be considered on the evaluation of interaction
-  techniques}
-\label{tab:exTable1}
-\includegraphics[width=.7\textwidth]{table.jpg}
-\end{table}
+Como trabalhos futuros, pretende-se implementar o protótipo, caracterizar precisão, estabilidade e latência do sensor, comparar diferentes fatores de ganho e verificar se a calibração cobre a faixa de interação proposta. Em seguida, poderão ser conduzidos testes de usabilidade e estudos de viabilidade com protocolo e supervisão clínica definidos previamente. A avaliação deverá distinguir desempenho no jogo de mudanças em desfechos clínicos, que exigem instrumentos apropriados e desenho de estudo adequado.
 
-\section{Images}
+\section{Referências}
 
-All images and illustrations should be in black-and-white, or gray tones,
-excepting for the papers that will be electronically available (on CD-ROMs,
-internet, etc.). The image resolution on paper should be about 600 dpi for
-black-and-white images, and 150-300 dpi for grayscale images.  Do not include
-images with excessive resolution, as they may take hours to print, without any
-visible difference in the result. 
+\begin{thebibliography}{99}
 
-\section{References}
+\bibitem{afyouni2020}
+AFYOUNI, Imad; MURAD, Abdullah; EINEA, Anas. Adaptive rehabilitation bots in serious games. \textit{Sensors}, v. 20, n. 24, art. 7037, 2020. DOI: 10.3390/s20247037.
 
-Bibliographic references must be unambiguous and uniform.  We recommend giving
-the author names references in brackets, e.g. \cite{knuth:84},
-\cite{boulic:91}, and \cite{smith:99}.
+\bibitem{brasil2026}
+BRASIL. Decreto nº 13.138, de 14 de outubro de 2026. Regulamenta a Lei nº 14.852, de 3 de maio de 2024, que cria o marco legal para a indústria de jogos eletrônicos. Brasília, DF: Presidência da República, 2026. Disponível em: \url{https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/d13138.htm}. Acesso em: 28 out. 2026.
 
-The references must be listed using 12 point font size, with 6 points of space
-before each reference. The first line of each reference should not be
-indented, while the subsequent should be indented by 0.5 cm.
+\bibitem{cha2021}
+CHA, Kuan et al. A novel upper-limb tracking system in a virtual environment for stroke rehabilitation. \textit{Journal of NeuroEngineering and Rehabilitation}, v. 18, art. 166, 2021. DOI: 10.1186/s12984-021-00957-6.
 
-\bibliographystyle{sbc}
-\bibliography{sbc-template}
+\bibitem{pasquini2026}
+PASQUINI, Guido et al. A serious game for assessing upper-limb visuomotor adaptation in children with cerebral palsy during reaching tasks in virtual reality. \textit{Scientific Reports}, v. 16, n. 1, p. 1--14, 2026.
+
+\bibitem{rego2010}
+REGO, P.; MOREIRA, P. M.; REIS, L. P. Serious games for rehabilitation: a survey and a classification towards a taxonomy. In: \textit{5th Iberian Conference on Information Systems and Technologies}. Santiago de Compostela: IEEE, 2010. p. 1--6.
+
+\bibitem{tori2022}
+TORI, A. A.; TORI, R.; NUNES, F. L. S. Serious game design in health education: a systematic review. \textit{IEEE Transactions on Learning Technologies}, v. 15, n. 6, p. 827--846, 2022. DOI: 10.1109/TLT.2022.3200583.
+
+\bibitem{utthayotha2020}
+UTTHAYOTHA, Sanya; CHOOSRI, Noppon. Survey of serious game controllers for stroke rehabilitation. In: \textit{2020 5th International Conference on Information Technology (InCIT)}. Chonburi: IEEE, 2020. p. 71--75. DOI: 10.1109/InCIT50588.2020.9310776.
+
+\end{thebibliography}
 
 \end{document}
