@@ -1,97 +1,48 @@
 package games.project.desability_geometry_dash;
 
 import com.fazecast.jSerialComm.SerialPort;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-public class UltrassonicSensorReader implements Runnable{
-
+public class UltrassonicSensorReader implements Runnable {
     private final SerialPort serialPort;
-    private volatile int distance;
-
-    private boolean running;
-
+    private volatile Reading latestReading = new Reading(0, 0);
+    private volatile boolean running;
     public UltrassonicSensorReader(String port) {
-
         serialPort = SerialPort.getCommPort(port);
         serialPort.setBaudRate(9600);
-
-        serialPort.setComPortTimeouts(
-            SerialPort.TIMEOUT_READ_SEMI_BLOCKING,
-            3000,
-            0
-        );
+        serialPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 3000, 0);
     }
-
     public void start() {
-
-        if (!serialPort.openPort()) {
-            throw new RuntimeException(
-                "Não foi possível abrir a port serial."
-            );
-        }
-
-        System.out.println("Arduino conectado!");
-
+        if (!serialPort.openPort()) throw new RuntimeException("Não foi possível abrir a porta serial.");
         running = true;
-
-        Thread thread = new Thread(this);
-        thread.setDaemon(true);
-        thread.start();
+        Thread thread = new Thread(this, "ultrasonic-sensor-reader");
+        thread.setDaemon(true); thread.start();
     }
-
-    @Override
-    public void run() {
-
-        try {
-
-            BufferedReader reader =
-                new BufferedReader(
-                    new InputStreamReader(
-                        serialPort.getInputStream()
-                    )
-                );
-
+    @Override public void run() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(serialPort.getInputStream()))) {
             while (running) {
-
                 String line = reader.readLine();
-
-                if (line == null) {
-                    continue;
-                }
-
-                try {
-
-                    distance = Integer.parseInt(line);
-                    System.out.println("Recebido do Arduino: " + distance + " (" + line + ")");
-
-                } catch (NumberFormatException e) {
-
-                    System.out.println(
-                        "Valor inválido: " + line
-                    );
-                }
+                if (line == null) continue;
+                try { latestReading = new Reading(Integer.parseInt(line.trim()), System.nanoTime()); }
+                catch (NumberFormatException e) { System.err.println("Leitura inválida do sensor: " + line); }
             }
+        } catch (Exception e) { if (running) e.printStackTrace(); }
+    }
+    public int getDistance() { return latestReading.distanceCm; }
+    public Reading getLatestReading() { return latestReading; }
 
-        } catch (Exception e) {
+    public static final class Reading {
+        private final int distanceCm;
+        private final long timestampNanos;
 
-            if (running) {
-                e.printStackTrace();
-            }
+        private Reading(int distanceCm, long timestampNanos) {
+            this.distanceCm = distanceCm;
+            this.timestampNanos = timestampNanos;
         }
+
+        public int getDistanceCm() { return distanceCm; }
+        public long getTimestampNanos() { return timestampNanos; }
     }
-
-    public int getDistance() {
-        return distance;
-    }
-
-    public void stop() {
-
-        running = false;
-
-        if (serialPort.isOpen()) {
-            serialPort.closePort();
-        }
-    }
+    public void stop() { running = false; if (serialPort.isOpen()) serialPort.closePort(); }
 }
