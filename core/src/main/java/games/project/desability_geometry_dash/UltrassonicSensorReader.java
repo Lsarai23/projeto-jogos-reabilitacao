@@ -6,7 +6,7 @@ import java.io.InputStreamReader;
 
 public class UltrassonicSensorReader implements Runnable {
     private final SerialPort serialPort;
-    private volatile int distance;
+    private volatile Reading latestReading = new Reading(0, 0);
     private volatile boolean running;
     public UltrassonicSensorReader(String port) {
         serialPort = SerialPort.getCommPort(port);
@@ -24,11 +24,25 @@ public class UltrassonicSensorReader implements Runnable {
             while (running) {
                 String line = reader.readLine();
                 if (line == null) continue;
-                try { distance = Integer.parseInt(line.trim()); }
+                try { latestReading = new Reading(Integer.parseInt(line.trim()), System.nanoTime()); }
                 catch (NumberFormatException e) { System.err.println("Leitura inválida do sensor: " + line); }
             }
         } catch (Exception e) { if (running) e.printStackTrace(); }
     }
-    public int getDistance() { return distance; }
+    public int getDistance() { return latestReading.distanceCm; }
+    public Reading getLatestReading() { return latestReading; }
+
+    public static final class Reading {
+        private final int distanceCm;
+        private final long timestampNanos;
+
+        private Reading(int distanceCm, long timestampNanos) {
+            this.distanceCm = distanceCm;
+            this.timestampNanos = timestampNanos;
+        }
+
+        public int getDistanceCm() { return distanceCm; }
+        public long getTimestampNanos() { return timestampNanos; }
+    }
     public void stop() { running = false; if (serialPort.isOpen()) serialPort.closePort(); }
 }

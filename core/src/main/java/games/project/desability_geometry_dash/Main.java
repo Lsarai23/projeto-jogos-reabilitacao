@@ -13,9 +13,9 @@ import java.util.EnumMap;
 import java.util.Locale;
 
 public class Main implements ApplicationListener {
-    private enum State { TITLE, TUTORIAL, PREPARE, PERFECT, CALIBRATE, COUNTDOWN, PLAY, PAUSED, RESULT, GAME_OVER, WIN }
+    private enum State { TITLE, TUTORIAL, PREPARE, PERFECT, CALIBRATE, COUNTDOWN, PLAY, PAUSED, RESULT, GAME_OVER, WIN, SHOW_RESULTS }
     private static final float UW = 1280f, UH = 720f, MIN_DISTANCE = 15f;
-    private static final float TUTORIAL_HOLD_SECONDS = .5f;
+    private static final float SPACE_HOLD_SECONDS = .5f;
     private static final String[] RESULTS = {"Hmm, o bolo não cresceu...", "Hmm, falta uma cobertura...", "Perfeito!"};
     private SpriteBatch batch;
     private ShapeRenderer shapes;
@@ -38,6 +38,14 @@ public class Main implements ApplicationListener {
     private boolean spaceDown, spaceHoldTriggered;
     private float spaceHoldTime;
     private float timer, spawnTimer, maxDistance, amplitude;
+    private final float[] phaseMinDistance = new float[3];
+    private final float[] phaseMaxDistance = new float[3];
+    private static final float MIN_MOVEMENT_DELTA_CM = 1f;
+    private boolean hasPreviousSensorSample;
+    private float previousSensorDistance, segmentDistanceCm, segmentDurationSeconds;
+    private long previousSensorTimestampNanos, phaseMeasurementStartNanos;
+    private int movementDirection;
+    private float totalMotionDistanceCm, totalMotionDurationSeconds, peakVelocityCmPerSecond;
     private int phase = 1, lives = 3, score, hiScore, phaseStartScore;
     private EnumMap<FallingIngredient.Type, Integer> required, collected;
 
@@ -68,6 +76,7 @@ public class Main implements ApplicationListener {
         tutorialObjectivesTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
         required = requirements(1);
         collected = new EnumMap<>(FallingIngredient.Type.class);
+        resetMovementMetrics();
         hiScore = Gdx.app.getPreferences("carrot-cake-game").getInteger("hiScore", 0);
         catchSound = Gdx.audio.newSound(Gdx.files.internal("catch.mp3"));
         missSound = Gdx.audio.newSound(Gdx.files.internal("miss.mp3"));
@@ -83,13 +92,12 @@ public class Main implements ApplicationListener {
                 if (spaceDown) return true;
                 spaceDown = true;
 
-                if (state == State.TITLE) {
+                if (state == State.TITLE || state == State.WIN) {
                     spaceHoldTime = 0f;
                     spaceHoldTriggered = false;
                     return true;
                 }
                 if (state == State.GAME_OVER) { restartPhase(); return true; }
-                if (state == State.WIN) { restartWholeGame(); return true; }
                 if (state == State.PLAY || state == State.COUNTDOWN) {
                     pausedState = state;
                     state = State.PAUSED;
@@ -114,6 +122,10 @@ public class Main implements ApplicationListener {
                 } else if (state == State.TITLE && !spaceHoldTriggered) {
                     if (sensorConnected) beginPreparation();
                     else connectSensor();
+                } else if (state == State.WIN && !spaceHoldTriggered) {
+                    state = State.SHOW_RESULTS;
+                } else if (state == State.SHOW_RESULTS) {
+                    state = State.WIN;
                 }
 
                 spaceHoldTime = 0f;
@@ -175,11 +187,12 @@ public class Main implements ApplicationListener {
     @Override public void render() { update(Math.min(Gdx.graphics.getDeltaTime(), .05f)); draw(); }
 
     private void update(float dt) {
-        if (state == State.TITLE && spaceDown && !spaceHoldTriggered) {
+        if ((state == State.TITLE || state == State.WIN) && spaceDown && !spaceHoldTriggered) {
             spaceHoldTime += dt;
-            if (spaceHoldTime >= TUTORIAL_HOLD_SECONDS) {
-                state = State.TUTORIAL;
+            if (spaceHoldTime >= SPACE_HOLD_SECONDS) {
                 spaceHoldTriggered = true;
+                if (state == State.TITLE) state = State.TUTORIAL;
+                else restartWholeGame();
             }
         }
         switch (state) {
@@ -199,6 +212,7 @@ public class Main implements ApplicationListener {
                 }
                 break;
             case COUNTDOWN:
+                recordSensorSample();
                 chef.update(dt);
                 if ((timer -= dt) <= 0) state = State.PLAY;
                 break;
@@ -211,6 +225,7 @@ public class Main implements ApplicationListener {
     }
 
     private void updateGame(float dt) {
+        recordSensorSample();
         chef.update(dt);
         if ((spawnTimer += dt) >= .82f) { spawnTimer = 0; spawnIngredient(); }
         Rectangle basket = chef.getBasketBounds();
@@ -250,7 +265,7 @@ public class Main implements ApplicationListener {
             if (phaseComplete()) finishPhase();
         } else {
             lives--; missSound.play();
-            if (lives <= 0) { lives = 0; score = phaseStartScore; state = State.GAME_OVER; music.stop(); }
+            if (lives <= 0) { lives = 0; score = phaseStartScore; finishMotionSegment(); resetSensorMotionBaseline(); state = State.GAME_OVER; music.stop(); }
         }
     }
 
@@ -268,11 +283,115 @@ public class Main implements ApplicationListener {
         if (n >= 3) r.put(FallingIngredient.Type.CHOCOLATE, 1);
         return r;
     }
-    private void startPhase(int n) {
-        phase = n; phaseStartScore = score; required = requirements(n); collected.clear(); ingredients.clear();
-        spawnTimer = 0; state = State.COUNTDOWN; timer = 3f;
+    private void recordSensorSample() {
+        if (sensor == null || !sensorConnected) return;
+        UltrassonicSensorReader.Reading reading = sensor.getLatestReading();
+        long timestamp = reading.getTimestampNanos();
+        float distance = reading.getDistanceCm();
+        if (timestamp <= 0L || timestamp < phaseMeasurementStartNanos || distance <= 0f || timestamp == previousSensorTimestampNanos) return;
+
+        int phaseIndex = phase - 1;
+        if (phaseIndex < 0 || phaseIndex >= phaseMinDistance.length) return;
+        phaseMinDistance[phaseIndex] = Math.min(phaseMinDistance[phaseIndex], distance);
+        phaseMaxDistance[phaseIndex] = Math.max(phaseMaxDistance[phaseIndex], distance);
+
+        if (hasPreviousSensorSample) {
+            float elapsed = (timestamp - previousSensorTimestampNanos) / 1_000_000_000f;
+            float change = distance - previousSensorDistance;
+            float traveled = Math.abs(change);
+            if (elapsed > 0f) {
+                if (traveled >= MIN_MOVEMENT_DELTA_CM) {
+                    int direction = change > 0f ? 1 : -1;
+                    if (movementDirection != 0 && direction != movementDirection) finishMotionSegment();
+                    movementDirection = direction;
+                    segmentDistanceCm += traveled;
+                    segmentDurationSeconds += elapsed;
+                    float velocity = traveled / elapsed;
+                    if (Float.isFinite(velocity)) peakVelocityCmPerSecond = Math.max(peakVelocityCmPerSecond, velocity);
+                } else if (movementDirection != 0) {
+                    segmentDurationSeconds += elapsed;
+                }
+            }
+        }
+
+        previousSensorDistance = distance;
+        previousSensorTimestampNanos = timestamp;
+        hasPreviousSensorSample = true;
     }
-    private void finishPhase() { ingredients.clear(); if (phase == 3) state = State.WIN; else { state = State.RESULT; timer = 3f; } }
+
+    private void finishMotionSegment() {
+        if (segmentDistanceCm > 0f && segmentDurationSeconds > 0f) {
+            totalMotionDistanceCm += segmentDistanceCm;
+            totalMotionDurationSeconds += segmentDurationSeconds;
+            peakVelocityCmPerSecond = Math.max(peakVelocityCmPerSecond, segmentDistanceCm / segmentDurationSeconds);
+        }
+        segmentDistanceCm = 0f;
+        segmentDurationSeconds = 0f;
+        movementDirection = 0;
+    }
+
+    private void resetSensorMotionBaseline() {
+        hasPreviousSensorSample = false;
+        previousSensorDistance = 0f;
+        previousSensorTimestampNanos = 0L;
+        segmentDistanceCm = 0f;
+        segmentDurationSeconds = 0f;
+        movementDirection = 0;
+    }
+
+    private void resetMovementMetrics() {
+        for (int i = 0; i < phaseMinDistance.length; i++) {
+            phaseMinDistance[i] = Float.POSITIVE_INFINITY;
+            phaseMaxDistance[i] = Float.NEGATIVE_INFINITY;
+        }
+        totalMotionDistanceCm = 0f;
+        totalMotionDurationSeconds = 0f;
+        phaseMeasurementStartNanos = 0L;
+        peakVelocityCmPerSecond = 0f;
+        resetSensorMotionBaseline();
+    }
+
+    private float averageVelocityCmPerSecond() {
+        return totalMotionDurationSeconds > 0f ? totalMotionDistanceCm / totalMotionDurationSeconds : 0f;
+    }
+
+    private String phaseRangeText(int phaseIndex) {
+        float minimum = phaseMinDistance[phaseIndex];
+        float maximum = phaseMaxDistance[phaseIndex];
+        if (!Float.isFinite(minimum) || !Float.isFinite(maximum) || maximum < minimum)
+            return String.format(Locale.ROOT, "Fase %d: sem leituras", phaseIndex + 1);
+        return String.format(Locale.ROOT, "Fase %d: min %.1f cm | max %.1f cm | ROM %.1f cm",
+            phaseIndex + 1, minimum, maximum, maximum - minimum);
+    }
+
+    private String velocityText(float velocity) {
+        return velocity > 0f && Float.isFinite(velocity)
+            ? String.format(Locale.ROOT, "%.1f cm/s", velocity) : "-- cm/s";
+    }
+
+    private void startPhase(int n) {
+        finishMotionSegment();
+        phase = n;
+        phaseMinDistance[n - 1] = Float.POSITIVE_INFINITY;
+        phaseMaxDistance[n - 1] = Float.NEGATIVE_INFINITY;
+        phaseMeasurementStartNanos = System.nanoTime();
+        resetSensorMotionBaseline();
+        phaseStartScore = score;
+        required = requirements(n);
+        collected.clear();
+        ingredients.clear();
+        spawnTimer = 0f;
+        state = State.COUNTDOWN;
+        timer = 3f;
+    }
+
+    private void finishPhase() {
+        finishMotionSegment();
+        resetSensorMotionBaseline();
+        ingredients.clear();
+        if (phase == 3) state = State.WIN;
+        else { state = State.RESULT; timer = 3f; }
+    }
     private void restartPhase() { score = phaseStartScore; lives = 3; startPhase(phase); music.play(); }
 
     private void restartWholeGame() {
@@ -282,6 +401,7 @@ public class Main implements ApplicationListener {
         phaseStartScore = 0;
         maxDistance = 0f;
         amplitude = 0f;
+        resetMovementMetrics();
         required = requirements(1);
         collected.clear();
         ingredients.clear();
@@ -297,16 +417,17 @@ public class Main implements ApplicationListener {
         ScreenUtils.clear(Color.BLACK);
         world.apply(); batch.setProjectionMatrix(world.getCamera().combined); batch.begin();
         if (!isSetupScreen()) batch.draw(background, 0, 0, world.getWorldWidth(), world.getWorldHeight());
-        if (!isSetupScreen() && state != State.RESULT && state != State.WIN) {
+        if (!isSetupScreen() && state != State.RESULT && state != State.WIN && state != State.SHOW_RESULTS) {
             chef.draw(batch);
             if (state == State.PLAY || state == State.PAUSED || state == State.GAME_OVER)
                 for (FallingIngredient item : ingredients) item.draw(batch);
         }
         batch.end();
-        if (state == State.RESULT || state == State.WIN || state == State.GAME_OVER || state == State.PAUSED) darken();
+        if (state == State.RESULT || state == State.WIN || state == State.GAME_OVER || state == State.PAUSED || state == State.SHOW_RESULTS) darken();
         ui.apply(); batch.setProjectionMatrix(ui.getCamera().combined);
 
         if (state == State.TUTORIAL) drawTutorialFrames();
+        if (state == State.SHOW_RESULTS) drawResultsFrames();
         batch.begin();
         if (state == State.RESULT || state == State.WIN) drawCake();
         if (state == State.COUNTDOWN || state == State.PLAY || state == State.PAUSED || state == State.GAME_OVER) drawHud();
@@ -330,6 +451,15 @@ public class Main implements ApplicationListener {
         shapes.end();
     }
 
+    private void drawResultsFrames() {
+        shapes.setProjectionMatrix(ui.getCamera().combined);
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(Color.GOLD);
+        shapes.rect(36f, 490f, 1208f, 103f);
+        shapes.rect(36f, 260f, 1208f, 220f);
+        shapes.rect(36f, 100f, 1208f, 150f);
+        shapes.end();
+    }
     private void drawTutorialImages() {
         batch.draw(tutorialObjectivesTexture, 62f, 384f, 110f, 200.66f);
 
@@ -420,8 +550,26 @@ public class Main implements ApplicationListener {
                 centered("Pressione ESPAÇO para continuar.", 330, .65f, Color.WHITE);
                 break;
             case WIN:
-                centered("Perfeito!", 620, .92f, Color.GREEN);
-                centered("Receita completa! Pressione ESPA\u00c7O para jogar novamente.", 125, .58f, Color.WHITE);
+                centered("Perfeito!", 620f, .92f, Color.GREEN);
+                centered("Segure ESPA\u00c7O para reiniciar.", 190f, .62f, Color.WHITE);
+                centered("Toque e solte ESPA\u00c7O para ver resultados.", 150f, .62f, Color.WHITE);
+                break;
+            case SHOW_RESULTS:
+                centered("RESULTADOS", 675f, 1.0f, Color.GOLD);
+                drawText("SCORE", 120f, 553f, .78f, Color.GOLD);
+                drawText(String.format(Locale.ROOT, "%06d", score), 120f, 516f, .96f, Color.WHITE);
+                drawText("HI-SCORE", 700f, 553f, .78f, Color.GOLD);
+                drawText(String.format(Locale.ROOT, "%06d", hiScore), 700f, 516f, .96f, Color.WHITE);
+
+                drawText("AMPLITUDE DE MOVIMENTO REAL (ROM)", 62f, 450f, .72f, Color.GOLD);
+                drawText(phaseRangeText(0), 62f, 412f, .72f, Color.WHITE);
+                drawText(phaseRangeText(1), 62f, 376f, .72f, Color.WHITE);
+                drawText(phaseRangeText(2), 62f, 340f, .72f, Color.WHITE);
+
+                drawText("PICO E M\u00c9DIA DE VELOCIDADE (SPEED)", 62f, 220f, .72f, Color.GOLD);
+                drawText("Pico: " + velocityText(peakVelocityCmPerSecond), 62f, 182f, .72f, Color.WHITE);
+                drawText("M\u00e9dia global: " + velocityText(averageVelocityCmPerSecond()), 62f, 145f, .72f, Color.WHITE);
+                centered("ESPA\u00c7O: voltar \u00e0 tela final.", 40f, .55f, Color.WHITE);
                 break;
             default:
                 break;
