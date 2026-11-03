@@ -1,812 +1,484 @@
 package games.project.desability_geometry_dash;
 
-import com.badlogic.gdx.ApplicationListener;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
-import com.badlogic.gdx.audio.Music;
-import com.badlogic.gdx.audio.Sound;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.*;
+import com.badlogic.gdx.audio.*;
+import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.*;
-import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
+import java.util.EnumMap;
+import java.util.Locale;
 
 public class Main implements ApplicationListener {
-
-    private SpriteBatch spriteBatch;
-    private FitViewport viewport;
-    private FitViewport uiViewport;
-
-    // =========================
-    // UI
-    // =========================
-
-    private Stage stage;
-    private Skin skin;
-    private Label powerUpLabel;
-    private float powerUpLabelTimer = 0f;
-
-    private Label gameOverLabel;
-    private Label shootInstructionLabel;
-    private Label moveInstructionLabel;
-    private Label scoreLabel;
-
-    // =========================
-    // Status do Jogador
-    // =========================
-    private int playerLives = 3;
-    private int score = 0;
-    private Texture lifeTexture;
-    private boolean isGameOver = false;
-
-    // =========================
-    // Texturas
-    // =========================
-
-    private Texture backgroundTexture;
-    private Texture starshipTexture;
-    private Texture laserTexture;
-    private Texture largeAsteroidTexture;
-    private Texture smallAsteroidTexture;
-    private Texture powerUpTexture;
-
-    // =========================
-    // Paralaxe
-    // =========================
-
-    private float backgroundOffsetX = 0f;
-    private float backgroundOffsetY = 0f;
-    private float parallaxSpeed = 0.5f;
-
-    // =========================
-    // Animações
-    // =========================
-
-    private Animation<TextureRegion> flyingAnimation;
-    private Texture[] flyingTextures;
-
-    private Animation<TextureRegion> explosionAnimation;
-    private Texture[] explosionTextures;
-
-    // =========================
-    // Entidades do Jogo
-    // =========================
-
-    private PlayerStarship player;
-    private Array<GameObject> gameObjects;
-    private Array<Explosion> explosions;
-    private Array<Sprite> laserSprites;
-
-    // =========================
-    // Timers e Parâmetros
-    // =========================
-
-    private float laserSpeed = 6f;
-    private float asteroidTimer = 0f;
-    private float powerUpTimer = 0f;
-    private float powerUpSpawnInterval = 3f;
-
-    // =========================
-    // Sons
-    // =========================
-
-    private Sound collisionSound;
-    private Sound explosionSound;
-    private Sound shootSound;
-    private Music backgroundMusic;
-
-    // =========================
-    // Arduino
-    // =========================
-    private UltrassonicSensorReader sensorReader;
-
-    @Override
-    public void create() {
-
-        spriteBatch = new SpriteBatch();
-        viewport = new FitViewport(8, 5);
-        uiViewport = new FitViewport(800, 500); // Resolução para UI em pixels
-
-        // =========================
-        // INTERFACE
-        // =========================
-
-        stage = new Stage(uiViewport);
-
-        skin = new Skin(Gdx.files.internal("uiskin.json"));
-        skin.getFont("default-font").getRegion().getTexture().setFilter(
-            Texture.TextureFilter.Nearest,
-            Texture.TextureFilter.Nearest
-        );
-
-        float padding = 15f;
-        float heartSize = 32f;
-
-        // --- Label Score ---
-        scoreLabel = new Label("Score: 0", skin);
-        scoreLabel.setFontScale(0.6f); // Fonte menor para não poluir
-        scoreLabel.pack();
-        scoreLabel.setPosition(padding, uiViewport.getWorldHeight() - scoreLabel.getHeight() - padding);
-        stage.addActor(scoreLabel);
-
-        // --- Label Power Up ---
-        powerUpLabel = new Label("+speed!", skin);
-        powerUpLabel.pack();
-
-        float posX = (uiViewport.getWorldWidth() - powerUpLabel.getWidth()) / 2f;
-        float posY = uiViewport.getWorldHeight() - powerUpLabel.getHeight() - 0.2f;
-
-        powerUpLabel.setPosition(Math.round(posX), Math.round(posY));
-        powerUpLabel.setVisible(false);
-        stage.addActor(powerUpLabel);
-
-        // --- Label Game Over ---
-        Label.LabelStyle gameOverStyle = new Label.LabelStyle(skin.getFont("default-font"), Color.RED);
-        gameOverLabel = new Label("GAME OVER\nPress R to restart", gameOverStyle);
-        gameOverLabel.setAlignment(Align.center);
-        gameOverLabel.pack();
-
-        float goPosX = (uiViewport.getWorldWidth() - gameOverLabel.getWidth()) / 2f;
-        float goPosY = (uiViewport.getWorldHeight() - gameOverLabel.getHeight()) / 2f;
-
-        gameOverLabel.setPosition(Math.round(goPosX), Math.round(goPosY));
-        gameOverLabel.setVisible(false);
-        stage.addActor(gameOverLabel);
-
-        // --- Labels de Instruções ---
-        shootInstructionLabel = new Label("SPACE: Shoot", skin);
-        moveInstructionLabel = new Label("HAND: Move", skin);
-
-        // Reduz o tamanho da fonte para 0.6f
-        shootInstructionLabel.setFontScale(0.6f);
-        moveInstructionLabel.setFontScale(0.6f);
-
-        shootInstructionLabel.pack();
-        moveInstructionLabel.pack();
-
-        float heartsBottomY = uiViewport.getWorldHeight() - heartSize - padding;
-
-        shootInstructionLabel.setPosition(
-            Math.round(uiViewport.getWorldWidth() - shootInstructionLabel.getWidth() - padding),
-            Math.round(heartsBottomY - shootInstructionLabel.getHeight() - 24f)
-        );
-        moveInstructionLabel.setPosition(
-            Math.round(uiViewport.getWorldWidth() - moveInstructionLabel.getWidth() - padding),
-            Math.round(heartsBottomY - shootInstructionLabel.getHeight() - moveInstructionLabel.getHeight() - 20f)
-        );
-
-        stage.addActor(shootInstructionLabel);
-        stage.addActor(moveInstructionLabel);
-
-        // =========================
-        // CARREGAMENTO DE TEXTURAS
-        // =========================
-
-        backgroundTexture = new Texture("background.jpg");
-        starshipTexture = new Texture("starship.png");
-        laserTexture = new Texture("laser.png");
-        largeAsteroidTexture = new Texture("asteroid.png");
-        smallAsteroidTexture = new Texture("large_asteroid.png");
-        powerUpTexture = new Texture("power_up.png");
-        lifeTexture = new Texture("life.png");
-
-        // =========================
-        // ANIMAÇÃO DA NAVE
-        // =========================
-
-        flyingTextures = new Texture[2];
-        TextureRegion[] flyingFrames = new TextureRegion[2];
-
-        for (int i = 0; i < 2; i++) {
-            flyingTextures[i] =
-                new Texture(String.format("flying_part_%d.png", i + 1));
-
-            flyingFrames[i] =
-                new TextureRegion(flyingTextures[i]);
-        }
-
-        flyingAnimation = new Animation<>(0.1f, flyingFrames);
-        flyingAnimation.setPlayMode(Animation.PlayMode.LOOP);
-
-        // =========================
-        // ANIMAÇÃO DA EXPLOSÃO
-        // =========================
-
-        explosionTextures = new Texture[3];
-        TextureRegion[] explosionFrames = new TextureRegion[3];
-
-        for (int i = 0; i < 3; i++) {
-            explosionTextures[i] =
-                new Texture(String.format("explosion_part_%d.png", i + 1));
-
-            explosionFrames[i] =
-                new TextureRegion(explosionTextures[i]);
-        }
-
-        explosionAnimation = new Animation<>(0.1f, explosionFrames);
-
-        // =========================
-        // INICIALIZAÇÃO DOS OBJETOS
-        // =========================
-
-        Sprite playerSprite = new Sprite(starshipTexture);
-        playerSprite.setSize(1, 1);
-
-        // =========================
-        // ARDUINO
-        // =========================
-        sensorReader = new UltrassonicSensorReader("COM3");
-        sensorReader.start();
-
-        player = new PlayerStarship(
-            playerSprite,
-            viewport,
-            flyingAnimation,
-            sensorReader
-        );
-
-        player.setPosition(3.5f, 0.5f);
-
-        gameObjects = new Array<>();
-        explosions = new Array<>();
-        laserSprites = new Array<>();
-
-        spawnPowerUp();
-
-        // =========================
-        // ÁUDIO
-        // =========================
-
-
-        collisionSound =
-            Gdx.audio.newSound(
-                Gdx.files.internal("starship_collision.mp3")
-            );
-
-        shootSound =
-            Gdx.audio.newSound(
-                Gdx.files.internal("shoot_sound.mp3")
-            );
-
-        explosionSound =
-            Gdx.audio.newSound(
-                Gdx.files.internal("explosion_sound.mp3")
-            );
-
-        backgroundMusic =
-            Gdx.audio.newMusic(
-                Gdx.files.internal("space_sound.mp3")
-            );
-
-        backgroundMusic.setLooping(true);
-        backgroundMusic.setVolume(0.5f);
-        backgroundMusic.play();
-
-
-    }
-
-    @Override
-    public void resize(int width, int height) {
-        viewport.update(width, height, true);
-        uiViewport.update(width, height, true);
-    }
-
-    @Override
-    public void render() {
-        if (!isGameOver) {
-            input();
-            logic();
-        } else {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-                restartGame();
-            }
-        }
-
-        draw();
-    }
-
-    private void input() {
-
-        float delta = Gdx.graphics.getDeltaTime();
-        float speed = player.getSpeed();
-
-        backgroundOffsetX -=
-            speed * delta * parallaxSpeed;
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            createLaser();
-        }
-    }
-
-    private void logic() {
-
-        float delta = Gdx.graphics.getDeltaTime();
-        float worldHeight = viewport.getWorldHeight();
-
-        if (powerUpLabelTimer > 0) {
-
-            powerUpLabelTimer -= delta;
-
-            if (powerUpLabelTimer <= 0) {
-                powerUpLabelTimer = 0;
-                powerUpLabel.setVisible(false);
-            }
-        }
-
-        player.update(delta);
-
-        for (int i = laserSprites.size - 1; i >= 0; i--) {
-
-            Sprite laser = laserSprites.get(i);
-
-            laser.translateY(laserSpeed * delta);
-
-            if (laser.getY() > worldHeight) {
-                laserSprites.removeIndex(i);
-            }
-        }
-
-        asteroidTimer += delta;
-
-        if (asteroidTimer > 1.5f) {
-            asteroidTimer = 0;
-            spawnRandomAsteroid();
-        }
-
-        powerUpTimer += delta;
-
-        if (powerUpTimer > powerUpSpawnInterval) {
-            powerUpTimer = 0;
-            spawnPowerUp();
-        }
-
-        Array<GameObject> toRemove = new Array<>();
-        Array<GameObject> toAdd = new Array<>();
-
-        for (GameObject obj : gameObjects) {
-
-            obj.update(delta);
-
-            if (obj.getY() + obj.getHeight() < 0) {
-                toRemove.add(obj);
-            }
-        }
-
-        processCollisions(toRemove, toAdd);
-
-        gameObjects.removeAll(toRemove, true);
-        gameObjects.addAll(toAdd);
-
-        for (int i = explosions.size - 1; i >= 0; i--) {
-
-            Explosion exp = explosions.get(i);
-
-            exp.stateTime += delta;
-
-            if (explosionAnimation.isAnimationFinished(exp.stateTime)) {
-                explosions.removeIndex(i);
-            }
-        }
-    }
-
-    private void processCollisions(
-        Array<GameObject> toRemove,
-        Array<GameObject> toAdd
-    ) {
-
-        for (int i = laserSprites.size - 1; i >= 0; i--) {
-
-            Sprite laser = laserSprites.get(i);
-
-            for (GameObject obj : gameObjects) {
-
-                if (
-                    obj instanceof Asteroid &&
-                        laser.getBoundingRectangle()
-                            .overlaps(obj.getCollisionBox())
-                ) {
-
-                    createExplosion(obj);
-                    toRemove.add(obj);
-                    laserSprites.removeIndex(i);
-
-                    if (obj instanceof LargeAsteroid) {
-                        splitLargeAsteroid((LargeAsteroid) obj, toAdd);
-                    } else if (obj instanceof SmallAsteroid) {
-                        score += 5;
-                        scoreLabel.setText("Score: " + score);
-                    }
-
-                    break;
+    private enum State { TITLE, TUTORIAL, PREPARE, PERFECT, CALIBRATE, COUNTDOWN, PLAY, PAUSED, RESULT, GAME_OVER, WIN }
+    private static final float UW = 1280f, UH = 720f, MIN_DISTANCE = 15f;
+    private static final float TUTORIAL_HOLD_SECONDS = .5f;
+    private static final String[] RESULTS = {"Hmm, o bolo não cresceu...", "Hmm, falta uma cobertura...", "Perfeito!"};
+    private SpriteBatch batch;
+    private ShapeRenderer shapes;
+    private FitViewport world, ui;
+    private BitmapFont font;
+    private Texture background, life;
+    private Texture tutorialLivesTexture, tutorialObjectivesTexture;
+    private Texture[] baker, cakes;
+    private Animation<TextureRegion> bakerAnimation;
+    private EnumMap<FallingIngredient.Type, Texture> ingredientTextures;
+    private final Array<FallingIngredient> ingredients = new Array<>();
+    private Chef chef;
+    private UltrassonicSensorReader sensor;
+    private boolean sensorConnected;
+    private String sensorMessage = "Conectando ao sensor na COM3...";
+    private Sound catchSound, missSound;
+    private Music music;
+    private State state = State.TITLE;
+    private State pausedState = State.PLAY;
+    private boolean spaceDown, spaceHoldTriggered;
+    private float spaceHoldTime;
+    private float timer, spawnTimer, maxDistance, amplitude;
+    private int phase = 1, lives = 3, score, hiScore, phaseStartScore;
+    private EnumMap<FallingIngredient.Type, Integer> required, collected;
+
+    @Override public void create() {
+        batch = new SpriteBatch();
+        shapes = new ShapeRenderer();
+        world = new FitViewport(16, 9);
+        ui = new FitViewport(UW, UH);
+        background = new Texture("background.jpg");
+        background.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+        font = new BitmapFont(Gdx.files.internal("default.fnt"));
+        font.getRegion().getTexture().setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+        life = keyed("life.png");
+        baker = new Texture[] {keyed("baker.png"), keyed("baker_pos2.png")};
+        bakerAnimation = new Animation<>(0.24f, new TextureRegion(baker[0]), new TextureRegion(baker[1]));
+        bakerAnimation.setPlayMode(Animation.PlayMode.LOOP);
+        chef = new Chef(new Sprite(baker[0]), world, bakerAnimation);
+        chef.setSize(2.35f, 1.65f);
+        chef.setPosition((world.getWorldWidth() - chef.getWidth()) / 2f, 0.2f);
+        ingredientTextures = new EnumMap<>(FallingIngredient.Type.class);
+        for (FallingIngredient.Type t : FallingIngredient.Type.values()) ingredientTextures.put(t, keyed(t.textureFile));
+        cakes = new Texture[] {keyed("cake-1.png"), keyed("cake-2.png"), keyed("cake-3.png")};
+
+        tutorialLivesTexture = new Texture("tutorial-lifes.png");
+        tutorialObjectivesTexture = new Texture("tutorial-obj-score.png");
+
+        tutorialLivesTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+        tutorialObjectivesTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+        required = requirements(1);
+        collected = new EnumMap<>(FallingIngredient.Type.class);
+        hiScore = Gdx.app.getPreferences("carrot-cake-game").getInteger("hiScore", 0);
+        catchSound = Gdx.audio.newSound(Gdx.files.internal("catch.mp3"));
+        missSound = Gdx.audio.newSound(Gdx.files.internal("miss.mp3"));
+        music = Gdx.audio.newMusic(Gdx.files.internal("background.mp3"));
+        music.setLooping(true);
+        music.setVolume(0.35f);
+        music.play();
+        connectSensor();
+
+        Gdx.input.setInputProcessor(new InputAdapter() {
+            @Override public boolean keyDown(int key) {
+                if (key != Input.Keys.SPACE) return false;
+                if (spaceDown) return true;
+                spaceDown = true;
+
+                if (state == State.TITLE) {
+                    spaceHoldTime = 0f;
+                    spaceHoldTriggered = false;
+                    return true;
                 }
-            }
-        }
-
-        for (GameObject obj : gameObjects) {
-
-            if (isGameOver) continue;
-
-            if (
-                player.getCollisionBox()
-                    .overlaps(obj.getCollisionBox())
-            ) {
-
-                if (obj instanceof PowerUp) {
-
-                    player.increaseSpeed(player.getSpeed() * 0.1f);
-                    showPowerUpMessage();
-                    toRemove.add(obj);
-
-                } else if (obj instanceof Asteroid) {
-
-                    collisionSound.play();
-                    createExplosion(obj);
-                    toRemove.add(obj);
-
-                    if (obj instanceof LargeAsteroid) {
-                        splitLargeAsteroid((LargeAsteroid) obj, toAdd);
-                    } else if (obj instanceof SmallAsteroid) {
-                        playerLives -= 1;
-                    }
-
-                    if (playerLives <= 0) {
-                        playerLives = 0;
-                        isGameOver = true;
-                        gameOverLabel.setVisible(true);
-                        backgroundMusic.stop();
-                    }
+                if (state == State.GAME_OVER) { restartPhase(); return true; }
+                if (state == State.WIN) { restartWholeGame(); return true; }
+                if (state == State.PLAY || state == State.COUNTDOWN) {
+                    pausedState = state;
+                    state = State.PAUSED;
+                    music.pause();
+                    return true;
                 }
+                if (state == State.PAUSED) {
+                    state = pausedState;
+                    music.play();
+                    return true;
+                }
+                return true;
+            }
+
+            @Override public boolean keyUp(int key) {
+                if (key != Input.Keys.SPACE) return false;
+                if (!spaceDown) return true;
+                spaceDown = false;
+
+                if (state == State.TUTORIAL) {
+                    state = State.TITLE;
+                } else if (state == State.TITLE && !spaceHoldTriggered) {
+                    if (sensorConnected) beginPreparation();
+                    else connectSensor();
+                }
+
+                spaceHoldTime = 0f;
+                spaceHoldTriggered = false;
+                return true;
+            }
+        });
+    }
+    private void connectSensor() {
+        if (sensor != null) sensor.stop();
+        sensor = new UltrassonicSensorReader("COM3");
+        try {
+            sensor.start(); sensorConnected = true; sensorMessage = "Sensor conectado.";
+        } catch (RuntimeException ex) {
+            sensorConnected = false;
+            sensorMessage = "Sensor indisponível. Verifique a COM3 e tente novamente.";
+            System.err.println(ex.getMessage());
+        }
+        chef.setSensorReader(sensor);
+    }
+
+    private Texture keyed(String file) {
+        Pixmap pix = new Pixmap(Gdx.files.internal(file));
+        Color key = new Color(), sample = new Color();
+        Color.rgba8888ToColor(key, pix.getPixel(0, 0));
+        int kr = Math.round(key.r * 255), kg = Math.round(key.g * 255), kb = Math.round(key.b * 255);
+        int left = pix.getWidth(), top = pix.getHeight(), right = -1, bottom = -1;
+        for (int y = 0; y < pix.getHeight(); y++) for (int x = 0; x < pix.getWidth(); x++) {
+            Color.rgba8888ToColor(sample, pix.getPixel(x, y));
+            boolean isKey = sample.a > .5f
+                && Math.abs(Math.round(sample.r * 255) - kr) < 14
+                && Math.abs(Math.round(sample.g * 255) - kg) < 14
+                && Math.abs(Math.round(sample.b * 255) - kb) < 14;
+            if (isKey) {
+                pix.setColor(0, 0, 0, 0);
+                pix.drawPixel(x, y);
+            } else if (sample.a > .05f) {
+                left = Math.min(left, x);
+                top = Math.min(top, y);
+                right = Math.max(right, x);
+                bottom = Math.max(bottom, y);
+            }
+        }
+        if (right >= left && bottom >= top) {
+            Pixmap cropped = new Pixmap(right - left + 1, bottom - top + 1, pix.getFormat());
+            cropped.setBlending(Pixmap.Blending.None);
+            cropped.drawPixmap(pix, 0, 0, left, top, cropped.getWidth(), cropped.getHeight());
+            pix.dispose();
+            pix = cropped;
+        }
+        Texture result = new Texture(pix);
+        result.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+        pix.dispose();
+        return result;
+    }
+
+    private void beginPreparation() { state = State.PREPARE; timer = 0; }
+    @Override public void resize(int w, int h) { world.update(w, h, true); ui.update(w, h, true); }
+    @Override public void render() { update(Math.min(Gdx.graphics.getDeltaTime(), .05f)); draw(); }
+
+    private void update(float dt) {
+        if (state == State.TITLE && spaceDown && !spaceHoldTriggered) {
+            spaceHoldTime += dt;
+            if (spaceHoldTime >= TUTORIAL_HOLD_SECONDS) {
+                state = State.TUTORIAL;
+                spaceHoldTriggered = true;
+            }
+        }
+        switch (state) {
+            case PREPARE:
+                if (sensorConnected && sensor.getDistance() > 0 && sensor.getDistance() <= MIN_DISTANCE) {
+                    state = State.PERFECT; timer = 2f;
+                }
+                break;
+            case PERFECT:
+                if ((timer -= dt) <= 0) { state = State.CALIBRATE; timer = 5f; }
+                break;
+            case CALIBRATE:
+                if ((timer -= dt) <= 0) {
+                    maxDistance = sensor.getDistance();
+                    if (maxDistance <= MIN_DISTANCE) timer = 5f;
+                    else { amplitude = maxDistance - MIN_DISTANCE; chef.configureCalibration(MIN_DISTANCE, maxDistance, amplitude); startPhase(1); }
+                }
+                break;
+            case COUNTDOWN:
+                chef.update(dt);
+                if ((timer -= dt) <= 0) state = State.PLAY;
+                break;
+            case PLAY: updateGame(dt); break;
+            case RESULT:
+                if ((timer -= dt) <= 0) { if (phase < 3) startPhase(phase + 1); else state = State.WIN; }
+                break;
+            default: break;
+        }
+    }
+
+    private void updateGame(float dt) {
+        chef.update(dt);
+        if ((spawnTimer += dt) >= .82f) { spawnTimer = 0; spawnIngredient(); }
+        Rectangle basket = chef.getBasketBounds();
+        for (int i = ingredients.size - 1; i >= 0; i--) {
+            FallingIngredient item = ingredients.get(i);
+            item.update(dt);
+            if (item.getY() + item.getHeight() < 0) ingredients.removeIndex(i);
+            else if (basket.overlaps(item.getCollisionBox())) {
+                ingredients.removeIndex(i); handleCatch(item.getType());
+                if (state != State.PLAY) break;
             }
         }
     }
 
-    private void showPowerUpMessage() {
-        powerUpLabelTimer = 3f;
-        powerUpLabel.setVisible(true);
+    private void spawnIngredient() {
+        Array<FallingIngredient.Type> needed = new Array<>();
+        for (FallingIngredient.Type t : required.keySet())
+            if (collected.getOrDefault(t, 0) < required.get(t)) needed.add(t);
+        FallingIngredient.Type type = needed.size > 0 && MathUtils.randomBoolean(.72f)
+            ? needed.random() : FallingIngredient.Type.values()[MathUtils.random(FallingIngredient.Type.values().length - 1)];
+        Sprite sprite = new Sprite(ingredientTextures.get(type));
+        float itemHeight = .95f; float itemWidth = itemHeight * sprite.getTexture().getWidth() / sprite.getTexture().getHeight(); sprite.setSize(itemWidth, itemHeight);
+        sprite.setPosition(MathUtils.random(0, world.getWorldWidth() - sprite.getWidth()), world.getWorldHeight() - sprite.getHeight());
+        ingredients.add(new FallingIngredient(sprite, type, MathUtils.random(1.7f, 2.4f)));
     }
 
-    private void splitLargeAsteroid(
-        LargeAsteroid large,
-        Array<GameObject> toAdd
-    ) {
-
-        for (int i = 0; i < 2; i++) {
-
-            Sprite smallSprite =
-                new Sprite(smallAsteroidTexture);
-
-            smallSprite.setSize(0.5f, 0.5f);
-
-            smallSprite.setPosition(
-                large.getX() +
-                    MathUtils.random(-0.2f, 0.2f),
-
-                large.getY()
-            );
-
-            SmallAsteroid small =
-                new SmallAsteroid(smallSprite);
-
-            toAdd.add(small);
-        }
-    }
-
-    private void spawnRandomAsteroid() {
-
-        Sprite astSprite =
-            new Sprite(largeAsteroidTexture);
-
-        float worldWidth =
-            viewport.getWorldWidth();
-
-        float worldHeight =
-            viewport.getWorldHeight();
-
-        if (MathUtils.randomBoolean()) {
-
-            astSprite.setSize(1f, 1f);
-
-            astSprite.setPosition(
-                MathUtils.random(0f, worldWidth - 1f),
-                worldHeight
-            );
-
-            gameObjects.add(
-                new LargeAsteroid(astSprite)
-            );
-
+    private void handleCatch(FallingIngredient.Type type) {
+        int count = collected.getOrDefault(type, 0), target = required.getOrDefault(type, 0);
+        if (target > count) {
+            collected.put(type, count + 1);
+            score += lives == 3 ? 5 : lives == 2 ? 3 : 1;
+            if (score > hiScore) {
+                hiScore = score;
+                Gdx.app.getPreferences("carrot-cake-game").putInteger("hiScore", hiScore).flush();
+            }
+            catchSound.play();
+            if (phaseComplete()) finishPhase();
         } else {
-
-            astSprite.setSize(0.5f, 0.5f);
-
-            astSprite.setPosition(
-                MathUtils.random(
-                    0f,
-                    worldWidth - 0.5f
-                ),
-                worldHeight
-            );
-
-            gameObjects.add(
-                new SmallAsteroid(astSprite)
-            );
+            lives--; missSound.play();
+            if (lives <= 0) { lives = 0; score = phaseStartScore; state = State.GAME_OVER; music.stop(); }
         }
     }
 
-    private void spawnPowerUp() {
-
-        Sprite pSprite =
-            new Sprite(powerUpTexture);
-
-        float size = 0.6f;
-
-        pSprite.setSize(size, size);
-
-        float spawnX =
-            MathUtils.random(
-                0f,
-                viewport.getWorldWidth() - size
-            );
-
-        float spawnY =
-            viewport.getWorldHeight() - size;
-
-        pSprite.setPosition(
-            spawnX,
-            spawnY
-        );
-
-        gameObjects.add(
-            new PowerUp(pSprite)
-        );
+    private boolean phaseComplete() {
+        for (FallingIngredient.Type t : required.keySet())
+            if (collected.getOrDefault(t, 0) < required.get(t)) return false;
+        return true;
     }
 
-    private void createLaser() {
+    private EnumMap<FallingIngredient.Type, Integer> requirements(int n) {
+        EnumMap<FallingIngredient.Type, Integer> r = new EnumMap<>(FallingIngredient.Type.class);
+        r.put(FallingIngredient.Type.EGG, 3); r.put(FallingIngredient.Type.FLOUR, 2);
+        r.put(FallingIngredient.Type.CARROT, 3); r.put(FallingIngredient.Type.SUGAR, 1);
+        if (n >= 2) r.put(FallingIngredient.Type.YEAST, 1);
+        if (n >= 3) r.put(FallingIngredient.Type.CHOCOLATE, 1);
+        return r;
+    }
+    private void startPhase(int n) {
+        phase = n; phaseStartScore = score; required = requirements(n); collected.clear(); ingredients.clear();
+        spawnTimer = 0; state = State.COUNTDOWN; timer = 3f;
+    }
+    private void finishPhase() { ingredients.clear(); if (phase == 3) state = State.WIN; else { state = State.RESULT; timer = 3f; } }
+    private void restartPhase() { score = phaseStartScore; lives = 3; startPhase(phase); music.play(); }
 
-        Sprite laserSprite =
-            new Sprite(laserTexture);
-
-        laserSprite.setSize(
-            0.2f,
-            0.6f
-        );
-
-        laserSprite.setX(
-            player.getX() +
-                (player.getWidth() -
-                    laserSprite.getWidth()) / 2f
-        );
-
-        laserSprite.setY(
-            player.getY() +
-                player.getHeight()
-        );
-
-        laserSprites.add(laserSprite);
-
-        shootSound.play();
+    private void restartWholeGame() {
+        score = 0;
+        lives = 3;
+        phase = 1;
+        phaseStartScore = 0;
+        maxDistance = 0f;
+        amplitude = 0f;
+        required = requirements(1);
+        collected.clear();
+        ingredients.clear();
+        chef.setPosition((world.getWorldWidth() - chef.getWidth()) / 2f, 0.2f);
+        beginPreparation();
     }
 
-    private void createExplosion(GameObject obj) {
-
-        Sprite expSprite =
-            new Sprite(
-                explosionAnimation.getKeyFrame(0)
-            );
-
-        expSprite.setSize(
-            obj.getWidth(),
-            obj.getHeight()
-        );
-
-        expSprite.setPosition(
-            obj.getX(),
-            obj.getY()
-        );
-
-        explosions.add(
-            new Explosion(expSprite)
-        );
-
-        explosionSound.play();
+    private boolean isSetupScreen() {
+        return state == State.TITLE || state == State.TUTORIAL || state == State.PREPARE || state == State.PERFECT || state == State.CALIBRATE;
     }
 
     private void draw() {
-
         ScreenUtils.clear(Color.BLACK);
-
-        viewport.apply();
-
-        spriteBatch.setProjectionMatrix(
-            viewport.getCamera().combined
-        );
-
-        spriteBatch.begin();
-
-        float worldWidth =
-            viewport.getWorldWidth();
-
-        float worldHeight =
-            viewport.getWorldHeight();
-
-        float x1 =
-            backgroundOffsetX % worldWidth;
-
-        float y1 =
-            backgroundOffsetY % worldHeight;
-
-        if (x1 > 0) {
-            x1 -= worldWidth;
+        world.apply(); batch.setProjectionMatrix(world.getCamera().combined); batch.begin();
+        if (!isSetupScreen()) batch.draw(background, 0, 0, world.getWorldWidth(), world.getWorldHeight());
+        if (!isSetupScreen() && state != State.RESULT && state != State.WIN) {
+            chef.draw(batch);
+            if (state == State.PLAY || state == State.PAUSED || state == State.GAME_OVER)
+                for (FallingIngredient item : ingredients) item.draw(batch);
         }
+        batch.end();
+        if (state == State.RESULT || state == State.WIN || state == State.GAME_OVER || state == State.PAUSED) darken();
+        ui.apply(); batch.setProjectionMatrix(ui.getCamera().combined);
 
-        if (y1 > 0) {
-            y1 -= worldHeight;
+        if (state == State.TUTORIAL) drawTutorialFrames();
+        batch.begin();
+        if (state == State.RESULT || state == State.WIN) drawCake();
+        if (state == State.COUNTDOWN || state == State.PLAY || state == State.PAUSED || state == State.GAME_OVER) drawHud();
+        if (state == State.TUTORIAL) drawTutorialImages();
+        drawMessage(); batch.end();
+    }
+
+    private void darken() {
+        Gdx.gl.glEnable(GL20.GL_BLEND); Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.setProjectionMatrix(ui.getCamera().combined); shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0, 0, 0, state == State.GAME_OVER ? .68f : .76f);
+        shapes.rect(0, 0, UW, UH); shapes.end(); Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+    private void drawTutorialFrames() {
+        shapes.setProjectionMatrix(ui.getCamera().combined);
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(Color.GOLD);
+        shapes.rect(36f, 377f, 1208f, 216f);
+        shapes.rect(36f, 207f, 1208f, 160f);
+        shapes.rect(36f, 70f, 1208f, 127f);
+        shapes.end();
+    }
+
+    private void drawTutorialImages() {
+        batch.draw(tutorialObjectivesTexture, 62f, 384f, 110f, 200.66f);
+
+        batch.draw(tutorialLivesTexture, 62f, 120f, 230f, 56.83f);
+        batch.draw(baker[0], 950f, 212f, 270f, 151f);
+        batch.draw(cakes[2], 1010f, 429f, 200f, 111.64f);
+    }
+    private void drawCake() {
+        Texture cake = cakes[phase - 1]; float w = 450, h = w * cake.getHeight() / cake.getWidth();
+        batch.draw(cake, (UW - w) / 2, (UH - h) / 2 - 20, w, h);
+    }
+    private void drawHud() {
+        drawText("SCORE " + String.format(Locale.ROOT, "%06d", score), 36, 688, .82f, Color.WHITE);
+        drawText("HI-SCORE " + String.format(Locale.ROOT, "%06d", hiScore), 480, 688, .72f, Color.WHITE);
+        drawText("FASE " + phase, 36, 620, .72f, Color.GOLD);
+        for (int i = 0; i < lives; i++) batch.draw(life, 1125 + i * 48, 650, 42, 42);
+        drawText("Objetivos:", 42, 558, .74f, Color.GOLD);
+        float y = 500f;
+        for (FallingIngredient.Type t : FallingIngredient.Type.values()) {
+            int target = required.getOrDefault(t, 0);
+            int remaining = target - collected.getOrDefault(t, 0);
+            if (remaining <= 0) continue;
+
+            Texture icon = ingredientTextures.get(t);
+            float iconHeight = .95f * UW / world.getWorldWidth();
+            float iconWidth = iconHeight * icon.getWidth() / (float) icon.getHeight();
+            batch.draw(icon, 42f, y - iconHeight / 2f - 8f, iconWidth, iconHeight);
+            drawText(remaining + "x", 52f + iconWidth, y, .55f, Color.WHITE);
+            y -= 78f;
         }
+    }
 
-        spriteBatch.draw(
-            backgroundTexture,
-            x1,
-            y1,
-            worldWidth,
-            worldHeight
-        );
+    private void drawMessage() {
+        switch (state) {
+            case TITLE:
+                centered("Baker's Rush: Recipe Catch", 580, 1.0f, Color.GOLD);
+                centered("Pressione e solte ESPA\u00c7O para iniciar.", 390f, .58f, Color.WHITE);
+                centered("Segure ESPA\u00c7O para abrir o tutorial.", 350f, .58f, Color.WHITE);
+                drawText(sensorMessage, 32f, 28f, .58f, sensorConnected ? Color.GREEN : Color.RED);
+                break;
+            case TUTORIAL:
+                centered("COMO JOGAR", 675f, 1.0f, Color.GOLD);
 
-        spriteBatch.draw(
-            backgroundTexture,
-            x1 + worldWidth,
-            y1,
-            worldWidth,
-            worldHeight
-        );
+                drawText("OBJETIVOS E PONTOS", 205f, 560f, .78f, Color.GOLD);
+                drawText("Colete os itens pedidos.", 205f, 525f, .70f, Color.WHITE);
+                drawText("3 vidas: +5 pontos.", 205f, 490f, .70f, Color.WHITE);
+                drawText("2 vidas: +3 pontos.", 205f, 455f, .70f, Color.WHITE);
+                drawText("1 vida: +1 ponto.", 205f, 420f, .70f, Color.WHITE);
 
-        spriteBatch.draw(
-            backgroundTexture,
-            x1,
-            y1 + worldHeight,
-            worldWidth,
-            worldHeight
-        );
 
-        spriteBatch.draw(
-            backgroundTexture,
-            x1 + worldWidth,
-            y1 + worldHeight,
-            worldWidth,
-            worldHeight
-        );
-
-        for (Sprite laser : laserSprites) {
-            laser.draw(spriteBatch);
+                drawText("MOVIMENTO", 62f, 342f, .90f, Color.GOLD);
+                drawText("Aproxime: esquerda.", 62f, 309f, .82f, Color.WHITE);
+                drawText("Afaste: direita.", 62f, 278f, .82f, Color.WHITE);
+                drawText("VIDAS E CONTROLES", 300f, 184f, .76f, Color.GOLD);
+                drawText("Item errado ou extra: perde 1 vida.", 300f, 158f, .66f, Color.WHITE);
+                drawText("3 perdas: Game Over. ESPA\u00c7O reinicia a fase.", 300f, 132f, .66f, Color.WHITE);
+                drawText("ESPA\u00c7O pausa e retoma durante a fase.", 300f, 106f, .66f, Color.WHITE);
+                centered("Solte ESPA\u00c7O para sair do tutorial.", 38f, .58f, Color.WHITE);
+                break;
+            case PREPARE:
+                centered("Posicione uma mão na frente do sensor.", 395, .72f, Color.WHITE);
+                if (sensorConnected && (sensor.getDistance() <= 0 || sensor.getDistance() > MIN_DISTANCE))
+                    centered("Aproxime mais", 335, .66f, Color.RED);
+                break;
+            case PERFECT:
+                centered("Perfeito!", 385, 1.1f, Color.GREEN);
+                centered("Mantenha a mão nessa posição.", 325, .58f, Color.WHITE);
+                break;
+            case CALIBRATE:
+                centered("Afaste a mão horizontalmente o máximo que puder.", 390, .65f, Color.WHITE);
+                centered("Calibração: " + Math.max(0, (int)Math.ceil(timer)), 330, .75f, Color.GOLD);
+                if (maxDistance > 0 && maxDistance <= MIN_DISTANCE)
+                    centered("Afaste mais a mão para calibrar.", 275, .5f, Color.RED);
+                break;
+            case COUNTDOWN:
+                centered("FASE " + phase, 410, 1.15f, Color.GOLD);
+                centered("Começa em " + Math.max(1, (int)Math.ceil(timer)), 340, .75f, Color.WHITE);
+                break;
+            case RESULT:
+                centered(RESULTS[phase - 1], 620, .62f, Color.WHITE);
+                break;
+            case GAME_OVER:
+                centered("GAME OVER", 405, 1.35f, Color.RED);
+                centered("Pressione ESPA\u00c7O para repetir a fase " + phase, 330, .66f, Color.WHITE);
+                break;
+            case PAUSED:
+                centered("PAUSADO", 405, 1.2f, Color.GOLD);
+                centered("Pressione ESPAÇO para continuar.", 330, .65f, Color.WHITE);
+                break;
+            case WIN:
+                centered("Perfeito!", 620, .92f, Color.GREEN);
+                centered("Receita completa! Pressione ESPA\u00c7O para jogar novamente.", 125, .58f, Color.WHITE);
+                break;
+            default:
+                break;
         }
+    }
 
-        if (!isGameOver) {
-            player.draw(spriteBatch);
+    private void centered(String s, float y, float scale, Color color) { drawText(s, (UW - textWidth(s, scale)) / 2, y, scale, color); }
 
-            TextureRegion flyingFrame =
-                player.getFlyingFrame();
-
-            if (flyingFrame != null) {
-
-                spriteBatch.draw(
-                    flyingFrame,
-                    player.getX(),
-                    player.getY(),
-                    player.getWidth(),
-                    player.getHeight()
-                );
+    private float textWidth(String s, float scale) {
+        float width = 0;
+        for (int i = 0; i < s.length(); i++) width += font.getData().getGlyph(base(s.charAt(i))).xadvance * scale;
+        return width;
+    }
+    private void drawText(String s, float x, float y, float scale, Color color) {
+        font.getData().setScale(scale); font.setColor(color);
+        float line = font.getLineHeight();
+        for (int i = 0; i < s.length(); i++) {
+            char original = s.charAt(i), b = base(original);
+            font.draw(batch, String.valueOf(b), x, y);
+            String mark = mark(original);
+            if (!mark.isEmpty()) {
+                float markY = original == 'ç' || original == 'Ç' ? y - line * .12f : y + line * .25f;
+                font.draw(batch, mark, x + font.getData().getGlyph(b).xadvance * scale * .08f, markY);
             }
+            x += font.getData().getGlyph(b).xadvance * scale;
         }
-
-        for (GameObject obj : gameObjects) {
-            obj.draw(spriteBatch);
-        }
-
-        for (Explosion exp : explosions) {
-
-            TextureRegion frame =
-                explosionAnimation.getKeyFrame(
-                    exp.stateTime
-                );
-
-            exp.sprite.setRegion(frame);
-
-            exp.sprite.draw(spriteBatch);
-        }
-
-        spriteBatch.end();
-
-        uiViewport.apply();
-        spriteBatch.setProjectionMatrix(uiViewport.getCamera().combined);
-        spriteBatch.begin();
-
-        float heartSize = 50f;
-        float padding = 15f;
-
-        for (int i = 0; i < playerLives; i++) {
-            float x = uiViewport.getWorldWidth() - padding - (i + 1) * (heartSize + padding);
-            float y = uiViewport.getWorldHeight() - heartSize - padding;
-
-            spriteBatch.draw(lifeTexture, x, y, heartSize, heartSize);
-        }
-
-        spriteBatch.end();
-
-        stage.act(Gdx.graphics.getDeltaTime());
-        stage.draw();
+        font.getData().setScale(1); font.setColor(Color.WHITE);
     }
-
-    private void restartGame() {
-        isGameOver = false;
-        playerLives = 3;
-        score = 0;
-
-        gameOverLabel.setVisible(false);
-        powerUpLabel.setVisible(false);
-        powerUpLabelTimer = 0f;
-        scoreLabel.setText("Score: " + score);
-
-        gameObjects.clear();
-        laserSprites.clear();
-        explosions.clear();
-
-        asteroidTimer = 0f;
-        powerUpTimer = 0f;
-
-        Sprite playerSprite = new Sprite(starshipTexture);
-        playerSprite.setSize(1, 1);
-
-        player = new PlayerStarship(
-            playerSprite,
-            viewport,
-            flyingAnimation,
-            sensorReader
-        );
-        player.setPosition(3.5f, 0.5f);
-
-        spawnPowerUp();
-
-        backgroundMusic.play();
+    private char base(char c) {
+        switch (c) {
+            case 'ã': case 'á': case 'à': case 'â': return 'a'; case 'Ã': case 'Á': case 'À': case 'Â': return 'A';
+            case 'é': case 'ê': case 'è': return 'e'; case 'É': case 'Ê': case 'È': return 'E';
+            case 'í': case 'ì': return 'i'; case 'Í': case 'Ì': return 'I';
+            case 'õ': case 'ó': case 'ò': case 'ô': return 'o'; case 'Õ': case 'Ó': case 'Ò': case 'Ô': return 'O';
+            case 'ú': case 'ù': return 'u'; case 'Ú': case 'Ù': return 'U'; case 'ç': return 'c'; case 'Ç': return 'C';
+            default: return c;
+        }
     }
-
-    @Override
-    public void pause() {}
-
-    @Override
-    public void resume() {}
-
-    @Override
-    public void dispose() {
-
-        spriteBatch.dispose();
-
-        stage.dispose();
-        skin.dispose();
-
-        backgroundTexture.dispose();
-        starshipTexture.dispose();
-        laserTexture.dispose();
-        largeAsteroidTexture.dispose();
-        smallAsteroidTexture.dispose();
-        powerUpTexture.dispose();
-        lifeTexture.dispose();
-
-        for (Texture t : explosionTextures) {
-            t.dispose();
+    private String mark(char c) {
+        switch (c) {
+            case 'ã': case 'õ': case 'Ã': case 'Õ': return "~";
+            case 'á': case 'é': case 'í': case 'ó': case 'ú': case 'Á': case 'É': case 'Í': case 'Ó': case 'Ú': return "'";
+            case 'à': case 'è': case 'ì': case 'ò': case 'ù': case 'À': case 'È': case 'Ì': case 'Ò': case 'Ù': return "'";
+            case 'â': case 'ê': case 'ô': case 'Â': case 'Ê': case 'Ô': return "^";
+            case 'ç': case 'Ç': return ",";
+            default: return "";
         }
-
-        for (Texture t : flyingTextures) {
-            t.dispose();
-        }
-
-        collisionSound.dispose();
-        explosionSound.dispose();
-        shootSound.dispose();
-        backgroundMusic.dispose();
+    }
+    @Override public void pause() { }
+    @Override public void resume() { }
+    @Override public void dispose() {
+        if (sensor != null) sensor.stop();
+        batch.dispose(); shapes.dispose(); font.dispose(); background.dispose(); life.dispose();
+        for (Texture t : baker) t.dispose();
+        for (Texture t : ingredientTextures.values()) t.dispose();
+        for (Texture t : cakes) t.dispose();
+        tutorialLivesTexture.dispose(); tutorialObjectivesTexture.dispose();
+        catchSound.dispose(); missSound.dispose(); music.dispose();
     }
 }

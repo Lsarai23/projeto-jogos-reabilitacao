@@ -24,8 +24,8 @@ allprojects {
 
 configure(subprojects) {
   apply plugin: 'java-library'
-  java.sourceCompatibility = 21
-  java.targetCompatibility = 21
+  java.sourceCompatibility = 17
+  java.targetCompatibility = 17
 
   dependencies {
     implementation 'com.fazecast:jSerialComm:2.11.4'
